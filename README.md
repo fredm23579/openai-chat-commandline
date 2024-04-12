@@ -1,5 +1,6 @@
 # ChatGPT Command-Line Chat Application
 
+## Description
 This is a command-line chat application powered by OpenAI's GPT-3.5 Turbo model, designed to run in any command-line interface. It allows users to interact with ChatGPT in a text-based format directly from their terminal, providing a responsive and engaging AI-powered chat experience.
 
 ## Features
@@ -25,8 +26,8 @@ cd openai-chat-commandline
 npm install
 ```
 ## Configuration
- Create a .env file in the root directory.
- Add your OpenAI API key to the .env file:
+ Create a ```.env``` file in the root directory.
+ Add your OpenAI API key to the ```.env``` file:
 ```bash
  OPENAI_API_KEY=Your-OpenAI-API-Key-Here
 ```
@@ -34,7 +35,6 @@ npm install
  To start the chat application, run the following command in your terminal:
 
 ```bash
- Copy code
  node chat.js
 ```
  You will be prompted to enter your questions or statements. After each input, the application will generate and display a response from ChatGPT.
