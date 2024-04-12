@@ -1,0 +1,28 @@
+{
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "node-fetch": "^3.3.2",
+    "openai": "^4.33.0",
+    "whatwg-url": "^14.0.0"
+  },
+  "name": "chat",
+  "version": "1.0.0",
+  "main": "chat.js",
+  "scripts": {
+    "test": "echo 'Error: no test specified' && exit 1",
+    "run": "node chat.js"
+  },
+  "keywords": [
+    "openai",
+    "chat",
+    "command line"
+  ],
+  "author": "Fred Motta",
+  "license": "MIT",
+  "description": "Command line openai simple chat",
+  "overrides": {
+    "node-fetch": {
+      "whatwg-url": "14.0.0"
+    }
+  }
+}
