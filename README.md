@@ -1,10 +1,13 @@
 # ChatGPT Command-Line Chat Application
 
 ## Description
-This is a command-line chat application powered by OpenAI's GPT-3.5 Turbo model, designed to run in any command-line interface. It allows users to interact with ChatGPT in a text-based format directly from their terminal, providing a responsive and engaging AI-powered chat experience.
+A command-line chat application powered by OpenAI's latest models (gpt-4o, gpt-4.1, o3-mini and more), with multi-turn conversation memory. Runs in any terminal.
 
 ## Features
-
+- Model selection at startup (gpt-4o, gpt-4o-mini, gpt-4.1, gpt-4.1-mini, gpt-4.1-nano, o3-mini)
+- Multi-turn conversation history (AI remembers context within a session)
+- `/clear` command to reset conversation history
+- `exit` or `quit` to stop the session
 - Simple and intuitive text-based chat interface.
 - Leverages the powerful GPT-3.5 Turbo model for generating responses.
 - Runs on any command-line interface across different operating systems.
