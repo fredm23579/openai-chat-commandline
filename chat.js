@@ -138,6 +138,8 @@ async function main() {
   let session          = new SessionHistory(providerName, model, SESSIONS_DIR);
   let systemPrompt     = null;
   let contextSessions  = [];   // previous sessions loaded as reference context
+  let memoryCtx        = memory.asContext();   // cached; rebuilt on /remember, /forget
+  let contextBlock     = '';                   // cached; rebuilt on /context, /clear
 
   const searchOn = isSearchAvailable() && cfg.get('autoSearch');
   console.log(
@@ -203,6 +205,7 @@ async function main() {
       session.clearMessages();
       systemPrompt    = null;
       contextSessions = [];
+      contextBlock    = '';
       console.log(chalk.yellow('Conversation, context, and system prompt cleared.\n'));
       continue;
     }
@@ -223,6 +226,7 @@ async function main() {
     if (trimmed.startsWith('/remember ')) {
       const fact = trimmed.slice(10).trim();
       const id   = memory.add(fact);
+      memoryCtx  = memory.asContext();
       console.log(chalk.green(`Memory saved (id: ${id}): ${fact}\n`));
       continue;
     }
@@ -241,6 +245,7 @@ async function main() {
     if (trimmed.startsWith('/forget ')) {
       const id  = trimmed.slice(8).trim();
       const ok  = memory.remove(id);
+      if (ok) memoryCtx = memory.asContext();
       console.log(ok ? chalk.green(`Removed memory ${id}\n`) : chalk.red(`Memory "${id}" not found.\n`));
       continue;
     }
@@ -276,6 +281,7 @@ async function main() {
       contextSessions = chosen
         .map(s => loadSession(s, SESSIONS_DIR))
         .filter(Boolean);
+      contextBlock = buildContextBlock(contextSessions);
       if (contextSessions.length) {
         console.log(chalk.green(`${contextSessions.length} session(s) loaded as reference context.\n`));
       } else {
@@ -443,14 +449,12 @@ async function main() {
       historyContent += textAtts.map(a => `\n\n[Attached: ${path.basename(a.name)}]\n${a.content}`).join('');
     }
 
-    // 3. Build effective system prompt (user-set + memory + personalization)
-    const memorCtx       = memory.asContext();
+    // 3. Build effective system prompt (user-set + cached memory + cached context)
     const personalization = cfg.systemAddition();
-    const contextBlock   = buildContextBlock(contextSessions);
     let effectiveSystem = '';
     if (personalization) effectiveSystem += personalization;
     if (systemPrompt)    effectiveSystem += systemPrompt;
-    if (memorCtx)        effectiveSystem += memorCtx;
+    if (memoryCtx)       effectiveSystem += memoryCtx;
     if (contextBlock)    effectiveSystem += '\n\n[Reference context from previous sessions:\n' + contextBlock + '\n]';
 
     // 4. Auto web search
