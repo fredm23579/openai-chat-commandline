@@ -18,6 +18,7 @@ import {
   printWelcome, selectProviderAndModel, selectSession,
   selectContextSessions, editConfig, showHelp,
 }                                                            from './lib/ui.js';
+import { select, checkbox }                                  from '@inquirer/prompts';
 
 // ─── Paths ────────────────────────────────────────────────────────────────────
 
@@ -124,8 +125,9 @@ async function main() {
   // Greet by name if configured
   const userName = cfg.get('name');
   if (userName) console.log(chalk.bold(`Welcome back, ${userName}!`));
-  if (memory.list().length) {
-    console.log(chalk.dim(`  ${memory.list().length} persistent memories loaded.\n`));
+  const memCount = memory.list().length;
+  if (memCount) {
+    console.log(chalk.dim(`  ${memCount} persistent memories loaded.\n`));
   }
 
   // Select provider + model (respects saved defaults)
@@ -151,9 +153,7 @@ async function main() {
   // Load readline prompt history
   let promptHistory = [];
   try {
-    if (fs.existsSync(HISTORY_FILE)) {
-      promptHistory = fs.readFileSync(HISTORY_FILE, 'utf-8').split('\n').filter(Boolean).slice(-1000);
-    }
+    promptHistory = fs.readFileSync(HISTORY_FILE, 'utf-8').split('\n').filter(Boolean).slice(-1000);
   } catch { /* ignore */ }
 
   const rl = readline.createInterface({
@@ -181,7 +181,8 @@ async function main() {
 
     // Persist to readline history file
     promptHistory.push(trimmed);
-    try { fs.writeFileSync(HISTORY_FILE, promptHistory.slice(-1000).join('\n') + '\n'); } catch { /* ignore */ }
+    if (promptHistory.length > 1000) promptHistory = promptHistory.slice(-1000);
+    try { fs.writeFileSync(HISTORY_FILE, promptHistory.join('\n') + '\n'); } catch { /* ignore */ }
 
     // ── Commands ─────────────────────────────────────────────────────────────
 
@@ -353,13 +354,12 @@ async function main() {
           const files = await searchDrive(arg, 10);
           sp.stop();
           if (!files.length) { console.log(chalk.dim('No files found.\n')); continue; }
-          const { select: sel } = await import('@inquirer/prompts');
           const choices = files.map(f => ({
             name:  `${f.name}  ${chalk.dim(f.mimeType)}`,
             value: f.id,
           }));
           choices.push({ name: chalk.gray('← Cancel'), value: null });
-          const chosen = await sel({ message: 'Select a file to attach:', choices });
+          const chosen = await select({ message: 'Select a file to attach:', choices });
           if (chosen) {
             const sp2 = ora('Reading…').start();
             try {
@@ -384,13 +384,12 @@ async function main() {
         const msgs = await searchGmail(query, 10);
         sp.stop();
         if (!msgs.length) { console.log(chalk.dim('No messages found.\n')); continue; }
-        const { checkbox: cb } = await import('@inquirer/prompts');
         const choices = msgs.map(m => ({
           name:    `${m.date.slice(0, 16).padEnd(18)}  ${m.from.slice(0, 25).padEnd(27)}  ${m.subject}`,
           value:   m.id,
           checked: false,
         }));
-        const chosen = await cb({ message: 'Select emails to attach (Space to toggle):', choices });
+        const chosen = await checkbox({ message: 'Select emails to attach (Space to toggle):', choices });
         for (const id of chosen) {
           const sp2 = ora('Reading email…').start();
           try {
