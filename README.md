@@ -1,27 +1,32 @@
 # AI Chat — Universal Command-Line Assistant
 
-A Node.js command-line chat application supporting **multiple AI providers**, **automatic web search with cited sources**, **file and URL attachments**, **Google Drive and Gmail integration**, **persistent session history**, **cross-session memory**, and **chat import from other AIs**.
+A Node.js command-line chat application supporting **six AI providers**, **automatic web search with cited sources**, **file and URL attachments**, **Google Drive and Gmail integration**, **persistent session history**, **cross-session memory**, and **chat import from other AIs**.
 
 ---
 
 ## Features
 
 ### AI Providers
+
 Select from six providers at startup (or set a default):
+
 | Provider | Models | Notes |
 |---|---|---|
-| **OpenAI** | gpt-4o, gpt-4.1, o3-mini, … | Vision support |
+| **OpenAI** | gpt-4o, gpt-4.1, o3-mini, … | Vision support, 1 M ctx |
 | **Anthropic (Claude)** | claude-opus-4-6, claude-sonnet-4-6, … | Vision support, 200 k ctx |
 | **Google Gemini** | gemini-2.0-flash, gemini-1.5-pro, … | Up to 2 M ctx, vision |
 | **Perplexity** | sonar, sonar-pro, sonar-deep-research | Built-in real-time web search |
-| **X AI (Grok)** | grok-3, grok-3-fast, grok-2 | xAI flagship models |
+| **X AI (Grok)** | grok-3, grok-3-fast, grok-2-1212 | xAI flagship models |
 | **Meta / Llama (Groq)** | llama-3.3-70b, llama-3.1-8b, mixtral | Fast open-weights inference |
 
 ### Automatic Web Search
+
 Every prompt is searched via **Tavily** or **Brave Search** before the AI responds. Results are injected as context and cited sources (`[1]`, `[2]`, …) are printed below each reply.
 
 ### File & URL Attachments
+
 Attach content to any message with `/file` or `/url`:
+
 | Type | Details |
 |---|---|
 | Text / code | `.txt`, `.md`, `.js`, `.py`, `.json`, `.csv`, `.html`, and any UTF-8 file |
@@ -35,29 +40,35 @@ Attach content to any message with `/file` or `/url`:
 | Google Sheets | `docs.google.com/spreadsheets/…` — exported as CSV |
 
 ### Google Drive & Gmail (OAuth2)
+
 - `/gdrive <query>` — full-text search across your Drive; select a file to attach
 - `/gdrive <file-id or URL>` — attach a specific Drive file directly
 - `/gmail <query>` — search Gmail and multi-select emails to attach as context
 - One-time OAuth2 browser consent; tokens cached automatically
 
 ### Persistent Session History
+
 - Every conversation is saved to `~/.ai-chat/sessions/` as a JSON file
 - `/history` — browse and reload any saved session
 - `/context` — multi-select previous sessions as reference context for the current chat
 - `/save` — force-save at any time; sessions also auto-save on exit
 
 ### Cross-Session Memory
+
 - `/remember <fact>` — persist any fact about yourself across all future sessions
 - `/memory` — list all stored memories
 - `/forget <id>` — remove a specific memory
 - Memories are automatically injected into every AI call
 
 ### Personalization
+
 - `/config` — set your name, default provider/model, auto-search preference, and more
 - Saved defaults skip the provider/model selection menus on startup
 
 ### Chat Import
+
 `/import <file>` — import conversation history from:
+
 - **ChatGPT** (`conversations.json` from Settings → Data export)
 - **Claude.ai** (Claude conversation export JSON)
 - **Gemini / Bard** (Google Takeout export)
@@ -67,6 +78,7 @@ Attach content to any message with `/file` or `/url`:
 Imported sessions are saved and available via `/history` or `/context`.
 
 ### REPL Quality of Life
+
 - **Streaming output** — tokens appear live for all providers
 - **↑/↓ prompt history** — persisted to `~/.ai-chat/prompt_history` across sessions
 - **Tab completion** — commands and file paths
@@ -126,6 +138,15 @@ See `.env.example` for the full list including Brave Search and local model endp
 
 On first use of `/gdrive` or `/gmail`, your browser will open for consent. Tokens are cached in `~/.ai-chat/google-tokens.json`.
 
+### Custom / Local Models (optional)
+
+Point the OpenAI client at any compatible server such as Ollama or LM Studio:
+
+```env
+OPENAI_BASE_URL=http://localhost:11434/v1
+OPENAI_API_KEY=ollama   # any non-empty string
+```
+
 ---
 
 ## Usage
@@ -179,6 +200,13 @@ All user data lives in `~/.ai-chat/`:
 ├── google-credentials.json   # Google OAuth2 client (user-provided)
 └── google-tokens.json        # Google OAuth2 tokens (auto-generated)
 ```
+
+---
+
+## Adding Models & Providers
+
+- **Add a model:** append to the `models` array for the relevant provider in `lib/providers.js`
+- **Add a provider:** create a new class (or reuse `OpenAICompatibleProvider`) in `lib/providers.js` and detect its env key in `chat.js`
 
 ---
 

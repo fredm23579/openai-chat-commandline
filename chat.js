@@ -18,6 +18,7 @@ import {
   printWelcome, selectProviderAndModel, selectSession,
   selectContextSessions, editConfig, showHelp,
 }                                                            from './lib/ui.js';
+import { select, checkbox }                                  from '@inquirer/prompts';
 
 // ─── Paths ────────────────────────────────────────────────────────────────────
 
@@ -124,8 +125,9 @@ async function main() {
   // Greet by name if configured
   const userName = cfg.get('name');
   if (userName) console.log(chalk.bold(`Welcome back, ${userName}!`));
-  if (memory.list().length) {
-    console.log(chalk.dim(`  ${memory.list().length} persistent memories loaded.\n`));
+  const memCount = memory.list().length;
+  if (memCount) {
+    console.log(chalk.dim(`  ${memCount} persistent memories loaded.\n`));
   }
 
   // Select provider + model (respects saved defaults)
@@ -136,6 +138,8 @@ async function main() {
   let session          = new SessionHistory(providerName, model, SESSIONS_DIR);
   let systemPrompt     = null;
   let contextSessions  = [];   // previous sessions loaded as reference context
+  let memoryCtx        = memory.asContext();   // cached; rebuilt on /remember, /forget
+  let contextBlock     = '';                   // cached; rebuilt on /context, /clear
 
   const searchOn = isSearchAvailable() && cfg.get('autoSearch');
   console.log(
@@ -151,9 +155,7 @@ async function main() {
   // Load readline prompt history
   let promptHistory = [];
   try {
-    if (fs.existsSync(HISTORY_FILE)) {
-      promptHistory = fs.readFileSync(HISTORY_FILE, 'utf-8').split('\n').filter(Boolean).slice(-1000);
-    }
+    promptHistory = fs.readFileSync(HISTORY_FILE, 'utf-8').split('\n').filter(Boolean).slice(-1000);
   } catch { /* ignore */ }
 
   const rl = readline.createInterface({
@@ -181,7 +183,8 @@ async function main() {
 
     // Persist to readline history file
     promptHistory.push(trimmed);
-    try { fs.writeFileSync(HISTORY_FILE, promptHistory.slice(-1000).join('\n') + '\n'); } catch { /* ignore */ }
+    if (promptHistory.length > 1000) promptHistory = promptHistory.slice(-1000);
+    try { fs.writeFileSync(HISTORY_FILE, promptHistory.join('\n') + '\n'); } catch { /* ignore */ }
 
     // ── Commands ─────────────────────────────────────────────────────────────
 
@@ -202,6 +205,7 @@ async function main() {
       session.clearMessages();
       systemPrompt    = null;
       contextSessions = [];
+      contextBlock    = '';
       console.log(chalk.yellow('Conversation, context, and system prompt cleared.\n'));
       continue;
     }
@@ -222,6 +226,7 @@ async function main() {
     if (trimmed.startsWith('/remember ')) {
       const fact = trimmed.slice(10).trim();
       const id   = memory.add(fact);
+      memoryCtx  = memory.asContext();
       console.log(chalk.green(`Memory saved (id: ${id}): ${fact}\n`));
       continue;
     }
@@ -240,6 +245,7 @@ async function main() {
     if (trimmed.startsWith('/forget ')) {
       const id  = trimmed.slice(8).trim();
       const ok  = memory.remove(id);
+      if (ok) memoryCtx = memory.asContext();
       console.log(ok ? chalk.green(`Removed memory ${id}\n`) : chalk.red(`Memory "${id}" not found.\n`));
       continue;
     }
@@ -275,6 +281,7 @@ async function main() {
       contextSessions = chosen
         .map(s => loadSession(s, SESSIONS_DIR))
         .filter(Boolean);
+      contextBlock = buildContextBlock(contextSessions);
       if (contextSessions.length) {
         console.log(chalk.green(`${contextSessions.length} session(s) loaded as reference context.\n`));
       } else {
@@ -353,13 +360,12 @@ async function main() {
           const files = await searchDrive(arg, 10);
           sp.stop();
           if (!files.length) { console.log(chalk.dim('No files found.\n')); continue; }
-          const { select: sel } = await import('@inquirer/prompts');
           const choices = files.map(f => ({
             name:  `${f.name}  ${chalk.dim(f.mimeType)}`,
             value: f.id,
           }));
           choices.push({ name: chalk.gray('← Cancel'), value: null });
-          const chosen = await sel({ message: 'Select a file to attach:', choices });
+          const chosen = await select({ message: 'Select a file to attach:', choices });
           if (chosen) {
             const sp2 = ora('Reading…').start();
             try {
@@ -384,13 +390,12 @@ async function main() {
         const msgs = await searchGmail(query, 10);
         sp.stop();
         if (!msgs.length) { console.log(chalk.dim('No messages found.\n')); continue; }
-        const { checkbox: cb } = await import('@inquirer/prompts');
         const choices = msgs.map(m => ({
           name:    `${m.date.slice(0, 16).padEnd(18)}  ${m.from.slice(0, 25).padEnd(27)}  ${m.subject}`,
           value:   m.id,
           checked: false,
         }));
-        const chosen = await cb({ message: 'Select emails to attach (Space to toggle):', choices });
+        const chosen = await checkbox({ message: 'Select emails to attach (Space to toggle):', choices });
         for (const id of chosen) {
           const sp2 = ora('Reading email…').start();
           try {
@@ -444,14 +449,12 @@ async function main() {
       historyContent += textAtts.map(a => `\n\n[Attached: ${path.basename(a.name)}]\n${a.content}`).join('');
     }
 
-    // 3. Build effective system prompt (user-set + memory + personalization)
-    const memorCtx       = memory.asContext();
+    // 3. Build effective system prompt (user-set + cached memory + cached context)
     const personalization = cfg.systemAddition();
-    const contextBlock   = buildContextBlock(contextSessions);
     let effectiveSystem = '';
     if (personalization) effectiveSystem += personalization;
     if (systemPrompt)    effectiveSystem += systemPrompt;
-    if (memorCtx)        effectiveSystem += memorCtx;
+    if (memoryCtx)       effectiveSystem += memoryCtx;
     if (contextBlock)    effectiveSystem += '\n\n[Reference context from previous sessions:\n' + contextBlock + '\n]';
 
     // 4. Auto web search
